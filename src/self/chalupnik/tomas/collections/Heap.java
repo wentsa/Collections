@@ -1,9 +1,9 @@
 package self.chalupnik.tomas.collections;
 
-public interface Heap {
-    Comparable getPeek();
-    Comparable extractPeek();
-    void insert(Comparable elem);
+public interface Heap<T> {
+    T getPeek();
+    T extractPeek();
+    void insert(T elem);
     void deletePeek();
 
     int size();

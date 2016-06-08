@@ -1,32 +1,22 @@
 package self.chalupnik.tomas.collections;
 
-
-public class BinaryHeap implements Heap {
+public abstract class BinaryHeap<T> {
+    protected T[] heap;
+    protected int size = 0;
 
     private static final double reallocMultiply = 1.5;
-    private static final int defaultInitSize = 100;
+    protected static final int defaultInitSize = 100;
 
-    private Comparable[] heap;
-    private int size = 0;
-    private final HeapType heapType;
+    protected abstract T[] newTypedArray(int size);
+    protected abstract int compare(T a, T b);
 
-    public BinaryHeap(HeapType heapType) {
-        this(defaultInitSize, heapType);
-    }
-
-    public BinaryHeap(int initialSize, HeapType heapType) {
-        heap = new Comparable[initialSize];
-        this.heapType = heapType;
-    }
-
-    public BinaryHeap(Comparable[] values, HeapType heapType) {
-        this.heapType = heapType;
+    protected void buildFromValues(T[] values) {
         if(values == null) {
-            heap = new Comparable[defaultInitSize];
+            heap = newTypedArray(defaultInitSize);
         } else {
-            heap = new Comparable[(int) (values.length * reallocMultiply)];
+            heap = newTypedArray((int) (values.length * reallocMultiply));
             for(int i = 0; i < values.length; i++) {
-                Comparable val = values[i];
+                T val = values[i];
                 if(val == null) {
                     throw new IllegalArgumentException("Values cannot be null");
                 }
@@ -42,38 +32,6 @@ public class BinaryHeap implements Heap {
         }
     }
 
-    private void heapify(int i) {
-        int left = left(i);
-        int right = right(i);
-
-        int largest = i;
-
-        if(left <= size) {
-            int leftCompare = heap[left].compareTo(heap[i]);
-            if(heapType.equals(HeapType.MAX_HEAP) && leftCompare > 0 || heapType.equals(HeapType.MIN_HEAP) && leftCompare < 0) {
-                largest = left;
-            }
-        }
-
-        if(right <= size) {
-            int rightCompare = heap[right].compareTo(heap[largest]);
-            if(heapType.equals(HeapType.MAX_HEAP) && rightCompare > 0 || heapType.equals(HeapType.MIN_HEAP) && rightCompare < 0) {
-                largest = right;
-            }
-        }
-
-        if(largest != i) {
-            swap(largest, i);
-            heapify(largest);
-        }
-    }
-
-    private void swap(int a, int b) {
-        Comparable tmp = heap[a];
-        heap[a] = heap[b];
-        heap[b] = tmp;
-    }
-
     private int parent(int i) {
         return i/2;
     }
@@ -86,18 +44,47 @@ public class BinaryHeap implements Heap {
         return 2 * i + 1;
     }
 
+    private void heapify(int i) {
+        int left = left(i);
+        int right = right(i);
 
-    @Override
-    public Comparable getPeek() {
+        int largest = i;
+
+        if(left <= size) {
+            int leftCompare = compare(heap[left], heap[i]);
+            if(leftCompare > 0) {
+                largest = left;
+            }
+        }
+
+        if(right <= size) {
+            int rightCompare = compare(heap[right], heap[largest]);
+            if(rightCompare > 0) {
+                largest = right;
+            }
+        }
+
+        if(largest != i) {
+            swap(largest, i);
+            heapify(largest);
+        }
+    }
+
+    private void swap(int a, int b) {
+        T tmp = heap[a];
+        heap[a] = heap[b];
+        heap[b] = tmp;
+    }
+
+    public T getPeek() {
         if(size > 0) {
             return heap[1];
         }
         return null;
     }
 
-    @Override
-    public Comparable extractPeek() {
-        Comparable peek = getPeek();
+    public T extractPeek() {
+        T peek = getPeek();
         if(peek == null) {
             return peek;
         }
@@ -105,27 +92,6 @@ public class BinaryHeap implements Heap {
         return peek;
     }
 
-    @Override
-    public void insert(Comparable elem) {
-        size++;
-        if(size >= heap.length) {
-            realloc();
-        }
-        int i = size;
-        while(i > 1 && (heapType.equals(HeapType.MAX_HEAP) && heap[parent(i)].compareTo(elem) < 0 || heapType.equals(HeapType.MIN_HEAP) && heap[parent(i)].compareTo(elem) > 0)) {
-            swap(i, parent(i));
-            i = parent(i);
-        }
-        heap[i] = elem;
-    }
-
-    private void realloc() {
-        Comparable[] old = heap;
-        heap = new Comparable[(int) (old.length * reallocMultiply)];
-        System.arraycopy(old, 0, heap, 0, old.length);
-    }
-
-    @Override
     public void deletePeek() {
         if(size == 1) {
             heap[1] = null;
@@ -137,38 +103,28 @@ public class BinaryHeap implements Heap {
         }
     }
 
-    @Override
-    public int size() {
-        return size;
+    private void realloc() {
+        T[] old = heap;
+        heap = newTypedArray((int) (old.length * reallocMultiply));
+        System.arraycopy(old, 0, heap, 0, old.length);
     }
 
-    @Override
-    public boolean isEmpty() {
-        return size == 0;
-    }
-
-    @Override
-    public void mergeWith(Heap other) {
-        if(other instanceof BinaryHeap) {
-            BinaryHeap otherHeap = (BinaryHeap) other;
-            if(!heapType.equals(otherHeap.heapType)) {
-                throw new IllegalArgumentException("Cannot merge MAX heap with MIN heap");
-            }
-            if(size + otherHeap.size + 2 > heap.length) {
-                Comparable[] old = heap;
-                heap = new Comparable[(int) ((size + otherHeap.size) * reallocMultiply)];
-                System.arraycopy(old, 0, heap, 0, old.length);
-            }
-            System.arraycopy(otherHeap.heap, 1, heap, size + 1, otherHeap.size);
-            size += otherHeap.size;
-
-            buildHeap();
+    public void insert(T elem) {
+        size++;
+        if (size >= heap.length) {
+            realloc();
         }
+        int i = size;
+        while (i > 1 && (compare(heap[parent(i)], elem) < 0)) {
+            swap(i, parent(i));
+            i = parent(i);
+        }
+        heap[i] = elem;
     }
 
     @Override
     public String toString() {
-        Comparable[] src = new Comparable[size];
+        T[] src = newTypedArray(size);
         System.arraycopy(heap, 1, src, 0, size);
 
         int depth = (int) (Math.log(src.length) / Math.log(2));
@@ -193,5 +149,17 @@ public class BinaryHeap implements Heap {
             res = res.substring(0, res.length() - 1);
         }
         return res;
+    }
+
+    public void mergeWith(BinaryHeap other) {
+        if(size + other.size + 2 > heap.length) {
+            T[] old = heap;
+            heap = newTypedArray((int) ((size + other.size) * reallocMultiply));
+            System.arraycopy(old, 0, heap, 0, old.length);
+        }
+        System.arraycopy(other.heap, 1, heap, size + 1, other.size);
+        size += other.size;
+
+        buildHeap();
     }
 }
